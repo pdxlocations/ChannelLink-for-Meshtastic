@@ -16,7 +16,10 @@ logging.basicConfig(
 )
 
 ### Load Config
-config_path =  'config.py'
+# Get the absolute path of the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(script_dir, 'config.py')
+
 config = {}
 if os.path.exists(config_path):
     with open(config_path, 'r') as config_file:
