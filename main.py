@@ -165,10 +165,9 @@ def on_message(client, userdata, msg):
         service_envelope.gateway_id = gateway_node_id
         modified_payload = service_envelope.SerializeToString()
 
-        print (f"\n\nOriginal Payload: {original_mp}")
-        print (f"\nModified Payload: {modified_mp}")
-        print ('')
-
+        # print (f"\n\nOriginal Payload: {original_mp}")
+        # print (f"\nModified Payload: {modified_mp}")
+        # print ('')
 
         # Publish the message to the target topic
         result = client.publish(target_topic, modified_payload)
