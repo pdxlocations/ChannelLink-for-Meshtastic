@@ -1,6 +1,6 @@
 A Python script using MQTT to bridge Meshtastic networks using different modem settings.
 
-<img width="672" alt="Screenshot 2024-10-27 at 9 55 46 PM" src="https://github.com/user-attachments/assets/a005a124-b0b6-41e4-a848-8c265156a293">
+<img width="889" alt="Screenshot 2024-10-27 at 10 24 00 PM" src="https://github.com/user-attachments/assets/35769f87-640c-49d8-9b99-6c746a66bdc4">
 
 Create a virtual environment or:
 ```
