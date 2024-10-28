@@ -35,6 +35,7 @@ TOPIC_1 = config.get('TOPIC_1')
 TOPIC_2 = config.get('TOPIC_2')
 KEY = config.get('KEY')
 FORWARDED_PORTNUMS = config.get('FORWARDED_PORTNUMS')
+HOP_MODIFIER = config.get('HOP_MODIFIER')
 
 RECENT_MESSAGES = deque(maxlen=100)  # Store recent messages to prevent loops
 CACHE_EXPIRY_TIME = 5  # Messages expire from cache after 5 seconds
@@ -129,7 +130,7 @@ def on_message(client, userdata, msg):
 
     new_channel = generate_hash(forward_to_preset, expanded_key)
     modified_mp.channel = new_channel
-    modified_mp.hop_limit = min(original_mp.hop_limit + 3, 7)
+    modified_mp.hop_limit = min(original_mp.hop_limit + HOP_MODIFIER, 7)
 
     if decoded_mp.decoded.portnum in FORWARDED_PORTNUMS:
 

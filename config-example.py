@@ -16,3 +16,5 @@ FORWARDED_PORTNUMS = [
     portnums_pb2.POSITION_APP, 
     portnums_pb2.ROUTING_APP
 ]
+
+HOP_MODIFIER = 1 # Add this many hops to account for bridge losses
