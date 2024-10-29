@@ -10,7 +10,7 @@ PASSWORD = "large4cats"
 TOPICS = [
     "msh/US/BRIDGE/2/e/LongFast",
     "msh/US/BRIDGE/2/e/MediumFast",
-    "msh/US/BRIDGE/2/e/SlowFast"
+    "msh/US/BRIDGE/2/e/ShortFast"
 ]
 KEY = "AQ=="
 FORWARDED_PORTNUMS = [
