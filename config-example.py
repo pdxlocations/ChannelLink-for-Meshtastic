@@ -7,8 +7,11 @@ BROKER = "mqtt.meshtastic.org"
 PORT = 1883
 USER = "meshdev"
 PASSWORD = "large4cats"
-TOPIC_1 = "msh/US/OR/BRIDGE/2/e/LongFast"
-TOPIC_2 = "msh/US/OR/BRIDGE/2/e/MediumFast"
+TOPICS = [
+    "msh/US/BRIDGE/2/e/LongFast",
+    "msh/US/BRIDGE/2/e/MediumFast",
+    "msh/US/BRIDGE/2/e/SlowFast"
+]
 KEY = "AQ=="
 FORWARDED_PORTNUMS = [
     portnums_pb2.TEXT_MESSAGE_APP, 

@@ -11,15 +11,16 @@ import base64
 # Enable logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)-8s | %(message)s',
+    format='%(asctime)s - %(levelname)s %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
 ### Load Config
-# Get the absolute path of the directory where this script is located
+# Get the directory where the script is located to build the path for the config file
 script_dir = os.path.dirname(os.path.abspath(__file__))
 config_path = os.path.join(script_dir, 'config.py')
 
+# Load configuration from the config.py file
 config = {}
 if os.path.exists(config_path):
     with open(config_path, 'r') as config_file:
@@ -27,44 +28,57 @@ if os.path.exists(config_path):
 else:
     raise FileNotFoundError(f"Configuration file not found: {config_path}")
 
+# Extract necessary config values
 BROKER = config.get('BROKER')
 PORT = config.get('PORT')
 USER = config.get('USER')
 PASSWORD = config.get('PASSWORD')
-TOPIC_1 = config.get('TOPIC_1')
-TOPIC_2 = config.get('TOPIC_2')
+TOPICS = config.get('TOPICS')
 KEY = config.get('KEY')
 FORWARDED_PORTNUMS = config.get('FORWARDED_PORTNUMS')
 HOP_MODIFIER = config.get('HOP_MODIFIER')
 
+# Manage recent messages to avoid loops
 RECENT_MESSAGES = deque(maxlen=100)  # Store recent messages to prevent loops
 CACHE_EXPIRY_TIME = 5  # Messages expire from cache after 5 seconds
 
+# Get the full default key
 expanded_key = "1PG7OiApB1nwvP+rz05pAQ==" if KEY == "AQ==" else KEY
 
 DIVIDER = '-' * 50
-def log_message(from_topic, to_topic, portnum, payload, action):
-    """Log messages with a formatted output."""
+
+def log_forwarded_message(from_topic, to_topic, portnum, orig_channel, new_channel, payload, action):
     logging.info(
         f"\n{DIVIDER}\n"
-        f"From Topic : {from_topic}\n"
-        f"To Topic   : {to_topic}\n"
+        f"From Topic : {from_topic} - CH {orig_channel}\n"
+        f"To Topic   : {to_topic} - CH {new_channel}\n"
         f"Portnum    : {portnum}\n"
         f"Payload    : {payload}\n"
         f"Action     : {action}\n"
         f"{DIVIDER}"
     )
 
+def log_skipped_message(from_topic, portnum, action):
+    logging.info(
+        f"\n{DIVIDER}\n"
+        f"From Topic : {from_topic}\n"
+        f"Portnum    : {portnum}\n"
+        f"Action     : {action}\n"
+        f"{DIVIDER}"
+    )
+
 def on_connect(client, userdata, flags, reason_code, properties=None):
+    """Callback function when the client connects to the broker.""" 
     if reason_code == 0:
         logging.info("Connected to broker successfully")
-        client.subscribe(TOPIC_1 + "/#")
-        client.subscribe(TOPIC_2 + "/#")
+        for topic in TOPICS:
+            client.subscribe(topic + "/#")
+            logging.info(f"Subscribed to topic: {topic}")
     else:
         logging.error(f"Failed to connect with reason code {reason_code}")
 
 def is_recent_message(topic, payload):
-    """Check if the message is recently processed."""
+    """Check if a message was recently processed to avoid loops."""
     current_time = time.time()
     for msg_payload, timestamp in RECENT_MESSAGES:
         if msg_payload == payload and current_time - timestamp < CACHE_EXPIRY_TIME:
@@ -83,7 +97,7 @@ def protobuf_to_clean_string(proto_message):
     return str(proto_message).replace('\n', ' ').replace('\r', ' ').strip()
 
 def xor_hash(data: bytes) -> int:
-    """Return XOR hash of all bytes in the provided string."""
+    """Compute an XOR hash from bytes."""
     result = 0
     for char in data:
         result ^= char
@@ -98,12 +112,18 @@ def generate_hash(name: str, key: str) -> int:
     result: int = h_name ^ h_key
     return result
 
+def get_other_topics(current_topic, topics):
+    """Return a list of all topics except the current one."""
+    return [topic for topic in topics if topic != current_topic.split('/!')[0]]
 
 def on_message(client, userdata, msg):
+    """Handle incoming MQTT messages."""
     se = mqtt_pb2.ServiceEnvelope()
     se_modified = mqtt_pb2.ServiceEnvelope()
     se_decoded = mqtt_pb2.ServiceEnvelope()
+
     try:
+        # Parse message payload into ServiceEnvelope objects
         se.ParseFromString(msg.payload)
         se_modified.ParseFromString(msg.payload)
         se_decoded.ParseFromString(msg.payload)
@@ -114,6 +134,7 @@ def on_message(client, userdata, msg):
         print(f"*** ServiceEnvelope: {str(e)}")
         return
     
+    # Decrypt the payload if necessary
     if original_mp.HasField("encrypted") and not original_mp.HasField("decoded"):
         decoded_data = decode_encrypted(original_mp)
     else:
@@ -121,65 +142,65 @@ def on_message(client, userdata, msg):
     
     decoded_mp.decoded.CopyFrom(decoded_data)
 
-    # Determine the target topic
-    gateway_node_id = msg.topic.split("/")[-1]
-    target_topic = f"{TOPIC_2}" if msg.topic.startswith(TOPIC_1) else f"{TOPIC_1}"
-
-    # Use the last segment of the target topic to generate the new channel
-    forward_to_preset = target_topic.split("/")[-1]
-
-    new_channel = generate_hash(forward_to_preset, expanded_key)
-    modified_mp.channel = new_channel
+    # Modify hop limit
     modified_mp.hop_limit = min(original_mp.hop_limit + HOP_MODIFIER, 7)
 
     if decoded_mp.decoded.portnum in FORWARDED_PORTNUMS:
-
+        # Extract portnum name and payload for logging
         portnum_name = get_portnum_name(decoded_mp.decoded.portnum)
         payload = decoded_mp.decoded.payload
     
+        # Decode payloads based on portnum type
         if decoded_mp.decoded.portnum == portnums_pb2.TEXT_MESSAGE_APP:
             payload = payload.decode('utf-8').replace('\n', ' ').replace('\r', ' ')
-
         elif decoded_mp.decoded.portnum == portnums_pb2.NODEINFO_APP:
             user_info = mesh_pb2.User()
             user_info.ParseFromString(decoded_mp.decoded.payload)
             payload = protobuf_to_clean_string(user_info)
-
         elif decoded_mp.decoded.portnum == portnums_pb2.POSITION_APP:
             pos = mesh_pb2.Position()
             pos.ParseFromString(decoded_mp.decoded.payload)
             payload = protobuf_to_clean_string(pos)
 
-        # Determine the target topic
-        gateway_node_id = msg.topic.split("/")[-1]
-        target_topic = f"{TOPIC_2}/{gateway_node_id}" if msg.topic.startswith(TOPIC_1) else f"{TOPIC_1}/{gateway_node_id}"
-
-        # Check if the message was already forwarded recently
-        if is_recent_message(msg.topic, payload):
-            log_message(msg.topic, target_topic, portnum_name, payload, "Skipped (Duplicate)")
-            return
-
-        # Store the message to prevent loops
-        RECENT_MESSAGES.append((payload, time.time()))
-
-        # package up the modified packet
+        # Package the modified packet for publishing
         service_envelope = mqtt_pb2.ServiceEnvelope()
         service_envelope.packet.CopyFrom(modified_mp)
-        service_envelope.channel_id = forward_to_preset
-        service_envelope.gateway_id = gateway_node_id
-        modified_payload = service_envelope.SerializeToString()
 
-        # print (f"\n\nOriginal Payload: {original_mp}")
-        # print (f"\nModified Payload: {modified_mp}")
-        # print ('')
+        # Get a list of target topics to forward the message to
+        target_topics = get_other_topics(msg.topic, TOPICS)
 
-        # Publish the message to the target topic
-        result = client.publish(target_topic, modified_payload)
+        # Check if the message was forwarded recently
+        if is_recent_message(msg.topic, payload):
+            return
+        
+        # Cache the message to prevent loops
+        RECENT_MESSAGES.append((payload, time.time()))
 
-        if result.rc == 0:
-            log_message(msg.topic, target_topic, portnum_name, payload, "Forwarded")
-        else:
-            log_message(msg.topic, target_topic, portnum_name, payload, f"Failed (Status: {result.rc})")
+        # Forward the message to all other topics
+        for target_topic in target_topics:
+            gateway_node_id = msg.topic.split("/")[-1]
+            forward_to_preset = target_topic.split("/")[-1]
+            target_topic =f"{target_topic}/{gateway_node_id}"
+    
+            new_channel = generate_hash(forward_to_preset, expanded_key)
+            modified_mp.channel = new_channel
+            original_channel = msg.topic
+            original_channel = original_channel.split("/")[3]
+            original_channel = generate_hash(original_channel, expanded_key)
+
+            service_envelope.channel_id = forward_to_preset
+            service_envelope.gateway_id = gateway_node_id
+
+            modified_payload = service_envelope.SerializeToString()
+
+            result = client.publish(target_topic, modified_payload)
+
+            if result.rc == 0:
+                log_forwarded_message(msg.topic, target_topic, portnum_name, original_channel, new_channel, payload, "Forwarded")
+            else:
+                logging.error(f"Failed to forward message to {target_topic} (Status: {result.rc})")
+    else:
+        log_skipped_message(msg.topic,get_portnum_name(decoded_mp.decoded.portnum), "Skipped" )
 
     time.sleep(0.1)
 
