@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 ### Bridge will not work on the default server - you must specify a private broker
-BROKER = "mqtt.meshtastic.org"
+BROKER = "localhost"
 PORT = 1883
-USER = "meshdev"
-PASSWORD = "large4cats"
+USER = "user"
+PASSWORD = "password"
 TOPICS = [
     "msh/US/BRIDGE/2/e/LongFast",
     "msh/US/BRIDGE/2/e/MediumFast",
