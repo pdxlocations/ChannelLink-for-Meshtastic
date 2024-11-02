@@ -1,11 +1,15 @@
 A Python script using MQTT to bridge Meshtastic networks using different modem settings.
 
 Example Topology:<br>
-<img width="831" alt="Screenshot 2024-10-28 at 3 51 21 PM" src="https://github.com/user-attachments/assets/0c269d65-3b17-4aa8-b159-08e404bca69f">
+<img width="831" alt="example topology" src="https://github.com/user-attachments/assets/0c269d65-3b17-4aa8-b159-08e404bca69f">
 
-Create a virtual environment to install dependencies or:
+To install:
 ```
-pip install meshtastic cryptography paho-mqtt --break-system-packages
+git clone https://github.com/pdxlocations/ChannelLink-for-Meshtastic.git
+cd ChannelLink-for-Meshtastic
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
 Rename config-example.py and edit configuration:
