@@ -7,6 +7,7 @@ import os
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 import base64
+import sys
 
 # Enable logging
 logging.basicConfig(
@@ -236,8 +237,11 @@ def main():
     client.on_message = on_message
 
     logging.info(f"Connecting to broker at {BROKER}:{PORT}...")
-    client.connect(BROKER, PORT, keepalive=60)
-
+    try:
+        client.connect(BROKER, PORT, keepalive=60)
+    except Exception as e:
+        print(f"Failed to connect to broker: {e}")
+        sys.exit(1)
     try:
         client.loop_forever()
     except KeyboardInterrupt:
