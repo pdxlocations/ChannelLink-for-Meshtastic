@@ -145,6 +145,7 @@ def on_message(client, userdata, msg):
 
     # Modify hop limit
     modified_mp.hop_limit = min(original_mp.hop_limit + HOP_MODIFIER, 7)
+    modified_mp.hop_start = min(original_mp.hop_start+ HOP_MODIFIER, 7)
 
     if decoded_mp.decoded.portnum in FORWARDED_PORTNUMS:
         # Extract portnum name and payload for logging
