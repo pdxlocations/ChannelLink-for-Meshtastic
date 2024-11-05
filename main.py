@@ -143,8 +143,8 @@ def on_message(client, userdata, msg):
     
     decoded_mp.decoded.CopyFrom(decoded_data)
 
-    # Modify hop limit
-    modified_mp.hop_limit = min(original_mp.hop_limit + HOP_MODIFIER, 7)
+    # Modify hop limit and hop start. Keep hop_limit/hop_start ratio the same.
+    modified_mp.hop_limit = min(original_mp.hop_limit + HOP_MODIFIER, 7 - (original_mp.hop_start - original_mp.hop_limit))
     modified_mp.hop_start = min(original_mp.hop_start+ HOP_MODIFIER, 7)
 
     if decoded_mp.decoded.portnum in FORWARDED_PORTNUMS:
@@ -163,6 +163,10 @@ def on_message(client, userdata, msg):
             pos = mesh_pb2.Position()
             pos.ParseFromString(decoded_mp.decoded.payload)
             payload = protobuf_to_clean_string(pos)
+        elif decoded_mp.decoded.portnum == portnums_pb2.ROUTING_APP:
+            ack = mesh_pb2.Routing()
+            ack.ParseFromString(decoded_mp.decoded.payload)
+            payload = protobuf_to_clean_string(ack)
 
         # Package the modified packet for publishing
         service_envelope = mqtt_pb2.ServiceEnvelope()
