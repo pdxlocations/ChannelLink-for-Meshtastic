@@ -144,10 +144,10 @@ def on_message(client, userdata, msg):
     decoded_mp.decoded.CopyFrom(decoded_data)
 
     # Modify hop limit and hop start. Keep hop_limit/hop_start ratio the same.
-    if original_mp.hop_limit > 0 and original_mp.hop_start > 0:
+    if original_mp.hop_start > 0:
         modified_mp.hop_limit = min(original_mp.hop_limit + HOP_MODIFIER, 7 - (original_mp.hop_start - original_mp.hop_limit))
         modified_mp.hop_start = min(original_mp.hop_start + HOP_MODIFIER, 7)
-    elif original_mp.hop_limit > 0:
+    else:
         modified_mp.hop_limit = min(original_mp.hop_limit + HOP_MODIFIER, 7)
 
     if decoded_mp.decoded.portnum in FORWARDED_PORTNUMS:
