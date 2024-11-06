@@ -48,11 +48,11 @@ expanded_key = "1PG7OiApB1nwvP+rz05pAQ==" if KEY == "AQ==" else KEY
 
 DIVIDER = '-' * 50
 
-def log_forwarded_message(from_topic, to_topic, portnum, orig_channel, new_channel, payload, action):
+def log_forwarded_message(from_topic, to_topic, portnum, orig_channel, new_channel, orig_hop_limit, new_hop_limit, orig_hop_start, new_hop_start, payload, action):
     logging.info(
         f"\n{DIVIDER}\n"
-        f"From Topic : {from_topic} - CH {orig_channel}\n"
-        f"To Topic   : {to_topic} - CH {new_channel}\n"
+        f"From Topic : {from_topic} - CH {orig_channel} | HL {orig_hop_limit} | HS {orig_hop_start}\n"
+        f"To Topic   : {to_topic} - CH {new_channel} | HL {new_hop_limit} | HS {new_hop_start}\n"
         f"Portnum    : {portnum}\n"
         f"Payload    : {payload}\n"
         f"Action     : {action}\n"
@@ -144,8 +144,11 @@ def on_message(client, userdata, msg):
     decoded_mp.decoded.CopyFrom(decoded_data)
 
     # Modify hop limit and hop start. Keep hop_limit/hop_start ratio the same.
-    modified_mp.hop_limit = min(original_mp.hop_limit + HOP_MODIFIER, 7 - (original_mp.hop_start - original_mp.hop_limit))
-    modified_mp.hop_start = min(original_mp.hop_start+ HOP_MODIFIER, 7)
+    if original_mp.hop_limit > 0 and original_mp.hop_start > 0:
+        modified_mp.hop_limit = min(original_mp.hop_limit + HOP_MODIFIER, 7 - (original_mp.hop_start - original_mp.hop_limit))
+        modified_mp.hop_start = min(original_mp.hop_start + HOP_MODIFIER, 7)
+    elif original_mp.hop_limit > 0:
+        modified_mp.hop_limit = min(original_mp.hop_limit + HOP_MODIFIER, 7)
 
     if decoded_mp.decoded.portnum in FORWARDED_PORTNUMS:
         # Extract portnum name and payload for logging
@@ -202,7 +205,7 @@ def on_message(client, userdata, msg):
             result = client.publish(target_topic, modified_payload)
 
             if result.rc == 0:
-                log_forwarded_message(msg.topic, target_topic, portnum_name, original_channel, new_channel, payload, "Forwarded")
+                log_forwarded_message(msg.topic, target_topic, portnum_name, original_channel, new_channel, original_mp.hop_limit, modified_mp.hop_limit, original_mp.hop_start, modified_mp.hop_start, payload, "Forwarded")
             else:
                 logging.error(f"Failed to forward message to {target_topic} (Status: {result.rc})")
     else:
