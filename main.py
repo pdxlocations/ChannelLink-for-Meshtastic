@@ -135,12 +135,16 @@ def on_message(client, userdata, msg):
         print(f"*** ServiceEnvelope: {str(e)}")
         return
     
-    # Decrypt the payload if necessary
-    if original_mp.HasField("encrypted") and not original_mp.HasField("decoded"):
-        decoded_data = decode_encrypted(original_mp)
-    else:
-        decoded_data = original_mp.decoded
+    # # Decrypt the payload if necessary
+    # if original_mp.HasField("encrypted") and not original_mp.HasField("decoded"):
+    #     decoded_data = decode_encrypted(original_mp)
+    # else:
+    #     decoded_data = original_mp.decoded
     
+
+    decoded_data = original_mp.decoded
+
+
     decoded_mp.decoded.CopyFrom(decoded_data)
 
     # Modify hop limit and hop start. Keep hop_limit/hop_start ratio the same.
@@ -171,7 +175,7 @@ def on_message(client, userdata, msg):
             ack.ParseFromString(decoded_mp.decoded.payload)
             payload = protobuf_to_clean_string(ack)
 
-        # Package the modified packet for publishing
+        # # Package the modified packet for publishing
         service_envelope = mqtt_pb2.ServiceEnvelope()
         service_envelope.packet.CopyFrom(modified_mp)
 
@@ -196,6 +200,19 @@ def on_message(client, userdata, msg):
             original_channel = msg.topic
             original_channel = original_channel.split("/")[3]
             original_channel = generate_hash(original_channel, expanded_key)
+
+            # if KEY == "":
+            #     modified_mp.decoded.CopyFrom(encoded_message)
+
+            # else:
+            #     modified_mp.encrypted = encrypt_message(channel, KEY, mesh_packet, encoded_message)
+
+
+            # Package the modified packet for publishing
+            # service_envelope = mqtt_pb2.ServiceEnvelope()
+            # service_envelope.packet.CopyFrom(modified_mp)
+
+
 
             service_envelope.channel_id = forward_to_preset
             service_envelope.gateway_id = gateway_node_id
@@ -236,6 +253,29 @@ def decode_encrypted(mp):
     except Exception as e:
         logging.error(f"Failed to decrypt: {e}")
         return None
+
+def encrypt_message(channel, key, mp, encoded_message):
+    """Encrypt a message."""
+    try:
+        mp.channel = generate_hash(channel, key)
+        key_bytes = base64.b64decode(key.encode('ascii'))
+
+        nonce_packet_id = getattr(mp, "id").to_bytes(8, "little")
+        nonce_from_node = getattr(mp, "from").to_bytes(8, "little")
+        
+        # Put both parts into a single byte array.
+        nonce = nonce_packet_id + nonce_from_node
+
+        cipher = Cipher(algorithms.AES(key_bytes), modes.CTR(nonce), backend=default_backend())
+        encryptor = cipher.encryptor()
+        encrypted_bytes = encryptor.update(encoded_message.SerializeToString()) + encryptor.finalize()
+
+        return encrypted_bytes
+    
+    except Exception as e:
+        logging.error(f"Failed to decrypt: {e}")
+        return None
+
 
 def main():
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
