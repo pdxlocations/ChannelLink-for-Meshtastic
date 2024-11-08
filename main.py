@@ -171,10 +171,6 @@ def on_message(client, userdata, msg):
             ack.ParseFromString(decoded_mp.decoded.payload)
             payload = protobuf_to_clean_string(ack)
 
-        # Package the modified packet for publishing
-        service_envelope = mqtt_pb2.ServiceEnvelope()
-        service_envelope.packet.CopyFrom(modified_mp)
-
         # Get a list of target topics to forward the message to
         target_topics = get_other_topics(msg.topic, TOPICS)
 
@@ -197,6 +193,14 @@ def on_message(client, userdata, msg):
             original_channel = original_channel.split("/")[3]
             original_channel = generate_hash(original_channel, expanded_key)
 
+            if KEY == "":
+                modified_mp.decoded.CopyFrom(decoded_mp.decoded)
+            else:
+                modified_mp.encrypted = encrypt_message(forward_to_preset, expanded_key, modified_mp, decoded_mp.decoded)
+
+            # Package the modified packet for publishing
+            service_envelope = mqtt_pb2.ServiceEnvelope()
+            service_envelope.packet.CopyFrom(modified_mp)
             service_envelope.channel_id = forward_to_preset
             service_envelope.gateway_id = gateway_node_id
 
@@ -236,6 +240,30 @@ def decode_encrypted(mp):
     except Exception as e:
         logging.error(f"Failed to decrypt: {e}")
         return None
+
+def encrypt_message(channel, key, mp, encoded_message):
+    """Encrypt a message."""
+
+    try:
+        mp.channel = generate_hash(channel, key)
+        key_bytes = base64.b64decode(key.encode('ascii'))
+
+        nonce_packet_id = getattr(mp, "id").to_bytes(8, "little")
+        nonce_from_node = getattr(mp, "from").to_bytes(8, "little")
+        
+        # Put both parts into a single byte array.
+        nonce = nonce_packet_id + nonce_from_node
+
+        cipher = Cipher(algorithms.AES(key_bytes), modes.CTR(nonce), backend=default_backend())
+        encryptor = cipher.encryptor()
+        encrypted_bytes = encryptor.update(encoded_message.SerializeToString()) + encryptor.finalize()
+
+        return encrypted_bytes
+    
+    except Exception as e:
+        logging.error(f"Failed to encrypt: {e}")
+        return None
+
 
 def main():
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
