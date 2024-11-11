@@ -148,6 +148,7 @@ def on_message(client, userdata, msg) -> None:
             else:
                 modified_mp.encrypted = encrypt_packet(forward_to_preset, expanded_key, modified_mp, decoded_mp.decoded)
 
+
             # Package the modified packet for publishing
             service_envelope = mqtt_pb2.ServiceEnvelope()
             service_envelope.packet.CopyFrom(modified_mp)
@@ -166,6 +167,7 @@ def on_message(client, userdata, msg) -> None:
         log_skipped_message(msg.topic,get_portnum_name(decoded_mp.decoded.portnum), "Skipped" )
 
     time.sleep(0.1)
+
 
 def main() -> None:
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
