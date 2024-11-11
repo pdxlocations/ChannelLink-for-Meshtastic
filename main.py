@@ -1,4 +1,5 @@
 from meshtastic.protobuf import mesh_pb2, mqtt_pb2, portnums_pb2
+from meshtastic import protocols
 import paho.mqtt.client as mqtt
 import logging
 import time
@@ -138,6 +139,9 @@ def on_message(client, userdata, msg):
     # Decrypt the payload if necessary
     if original_mp.HasField("encrypted") and not original_mp.HasField("decoded"):
         decoded_data = decode_encrypted(original_mp)
+        if decoded_data is None:  # Check if decryption failed
+            logging.error("Decryption failed; skipping message")
+            return  # Skip processing this message if decryption failed
     else:
         decoded_data = original_mp.decoded
     
@@ -154,22 +158,12 @@ def on_message(client, userdata, msg):
         # Extract portnum name and payload for logging
         portnum_name = get_portnum_name(decoded_mp.decoded.portnum)
         payload = decoded_mp.decoded.payload
-    
-        # Decode payloads based on portnum type
-        if decoded_mp.decoded.portnum == portnums_pb2.TEXT_MESSAGE_APP:
-            payload = payload.decode('utf-8').replace('\n', ' ').replace('\r', ' ')
-        elif decoded_mp.decoded.portnum == portnums_pb2.NODEINFO_APP:
-            user_info = mesh_pb2.User()
-            user_info.ParseFromString(decoded_mp.decoded.payload)
-            payload = protobuf_to_clean_string(user_info)
-        elif decoded_mp.decoded.portnum == portnums_pb2.POSITION_APP:
-            pos = mesh_pb2.Position()
-            pos.ParseFromString(decoded_mp.decoded.payload)
-            payload = protobuf_to_clean_string(pos)
-        elif decoded_mp.decoded.portnum == portnums_pb2.ROUTING_APP:
-            ack = mesh_pb2.Routing()
-            ack.ParseFromString(decoded_mp.decoded.payload)
-            payload = protobuf_to_clean_string(ack)
+        portNumInt = decoded_mp.decoded.portnum
+        handler = protocols.get(portNumInt)
+        if handler.protobufFactory is not None:
+            pb = handler.protobufFactory()
+            pb.ParseFromString(decoded_mp.decoded.payload)
+            payload = protobuf_to_clean_string(pb)
 
         # Get a list of target topics to forward the message to
         target_topics = get_other_topics(msg.topic, TOPICS)
