@@ -4,21 +4,8 @@ from cryptography.hazmat.backends import default_backend
 from meshtastic.protobuf import mesh_pb2
 import logging
 
-def xor_hash(data: bytes) -> int:
-    """Compute an XOR hash from bytes."""
-    result = 0
-    for char in data:
-        result ^= char
-    return result
+from utils import generate_hash
 
-def generate_hash(name: str, key: str) -> int:
-    """generate the channel number by hashing the channel name and psk"""
-    replaced_key = key.replace('-', '+').replace('_', '/')
-    key_bytes = base64.b64decode(replaced_key.encode('utf-8'))
-    h_name = xor_hash(bytes(name, 'utf-8'))
-    h_key = xor_hash(key_bytes)
-    result: int = h_name ^ h_key
-    return result
 
 def decrypt_packet(mp, key):
     """Decrypt the encrypted message payload and return the decoded data."""
