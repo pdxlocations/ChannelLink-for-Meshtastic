@@ -12,8 +12,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Rename config-example.py and edit configuration:
+Rename config-example.json and edit configuration:
 ```
-sudo mv config-example.py config.py
-sudo nano config.py
+sudo mv config-example.json config.json
+sudo nano config.json
 ```
