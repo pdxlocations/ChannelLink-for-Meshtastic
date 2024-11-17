@@ -9,7 +9,7 @@ config_path = os.path.join(script_dir, 'config.json')
 # Load configuration from the config.py file
 config = {}
 if os.path.exists(config_path):
-    with open('config.json', 'r') as config_file:
+    with open(config_path, 'r') as config_file:
         config = json.load(config_file)
 else:
     raise FileNotFoundError(f"Configuration file not found: {config_path}")

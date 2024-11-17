@@ -5,7 +5,7 @@ import logging
 import time
 from collections import deque
 
-import config
+import load_config
 from encryption import decrypt_packet, encrypt_packet
 from utils import protobuf_to_clean_string, get_portnum_name, generate_hash
 from logger import log_forwarded_message, log_skipped_message
@@ -43,7 +43,7 @@ def on_message(client, userdata, msg) -> None:
     
     # Decrypt the payload if necessary
     if original_mp.HasField("encrypted") and not original_mp.HasField("decoded"):
-        decoded_data = decrypt_packet(original_mp, config.EXPANDED_KEY)
+        decoded_data = decrypt_packet(original_mp, load_config.EXPANDED_KEY)
         if decoded_data is None:  # Check if decryption failed
             logging.error("Decryption failed; skipping message")
             return  # Skip processing this message if decryption failed
@@ -54,12 +54,12 @@ def on_message(client, userdata, msg) -> None:
 
     # Modify hop limit and hop start. Keep hop_limit/hop_start ratio the same.
     if original_mp.hop_start > 0:
-        modified_mp.hop_limit = min(original_mp.hop_limit + config.HOP_MODIFIER, 7 - (original_mp.hop_start - original_mp.hop_limit))
-        modified_mp.hop_start = min(original_mp.hop_start + config.HOP_MODIFIER, 7)
+        modified_mp.hop_limit = min(original_mp.hop_limit + load_config.HOP_MODIFIER, 7 - (original_mp.hop_start - original_mp.hop_limit))
+        modified_mp.hop_start = min(original_mp.hop_start + load_config.HOP_MODIFIER, 7)
     else:
-        modified_mp.hop_limit = min(original_mp.hop_limit + config.HOP_MODIFIER, 7)
+        modified_mp.hop_limit = min(original_mp.hop_limit + load_config.HOP_MODIFIER, 7)
 
-    if decoded_mp.decoded.portnum in config.FORWARDED_PORTNUMS:
+    if decoded_mp.decoded.portnum in load_config.FORWARDED_PORTNUMS:
         # Extract portnum name and payload for logging
         portnum_name = get_portnum_name(decoded_mp.decoded.portnum)
         payload = decoded_mp.decoded.payload
@@ -71,7 +71,7 @@ def on_message(client, userdata, msg) -> None:
             payload = protobuf_to_clean_string(pb)
 
         # Get a list of all topics except the current one
-        target_topics = [topic for topic in config.TOPICS if topic != msg.topic.split('/!')[0]]
+        target_topics = [topic for topic in load_config.TOPICS if topic != msg.topic.split('/!')[0]]
 
         # Check if the message was forwarded recently
         if is_recent_message(payload):
@@ -86,16 +86,16 @@ def on_message(client, userdata, msg) -> None:
             forward_to_preset = target_topic.split("/")[-1]
             target_topic =f"{target_topic}/{gateway_node_id}"
     
-            new_channel = generate_hash(forward_to_preset, config.EXPANDED_KEY)
+            new_channel = generate_hash(forward_to_preset, load_config.EXPANDED_KEY)
             modified_mp.channel = new_channel
             original_channel = msg.topic
             original_channel = original_channel.split("/")[3]
-            original_channel = generate_hash(original_channel, config.EXPANDED_KEY)
+            original_channel = generate_hash(original_channel, load_config.EXPANDED_KEY)
 
-            if config.EXPANDED_KEY == "":
+            if load_config.EXPANDED_KEY == "":
                 modified_mp.decoded.CopyFrom(decoded_mp.decoded)
             else:
-                modified_mp.encrypted = encrypt_packet(forward_to_preset, config.EXPANDED_KEY, modified_mp, decoded_mp.decoded)
+                modified_mp.encrypted = encrypt_packet(forward_to_preset, load_config.EXPANDED_KEY, modified_mp, decoded_mp.decoded)
 
 
             # Package the modified packet for publishing
