@@ -1,11 +1,11 @@
 import paho.mqtt.client as mqtt
-import config
+import load_config
 from logger import logging
 
 def on_connect(client, userdata, flags, reason_code, properties=None):
     if reason_code == 0:
         logging.info("Connected to broker successfully")
-        for topic in config.TOPICS:
+        for topic in load_config.TOPICS:
             client.subscribe(topic + "/#")
             logging.info(f"Subscribed to topic: {topic}")
     else:
@@ -13,6 +13,6 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
 
 def create_mqtt_client():
     client = mqtt.Client()
-    client.username_pw_set(config.USER, config.PASSWORD)
+    client.username_pw_set(load_config.USER, load_config.PASSWORD)
     client.on_connect = on_connect
     return client
