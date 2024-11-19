@@ -1,4 +1,3 @@
-
 from meshtastic.protobuf import mqtt_pb2
 from meshtastic import protocols
 import logging
@@ -9,7 +8,6 @@ import load_config
 from encryption import decrypt_packet, encrypt_packet
 from utils import protobuf_to_clean_string, get_portnum_name, generate_hash
 from logger import log_forwarded_message, log_skipped_message
-
 
 # Manage recent messages to avoid loops
 RECENT_MESSAGES = deque(maxlen=100)  # Store recent messages to prevent loops
@@ -22,8 +20,6 @@ def is_recent_message(payload) -> bool:
         if msg_payload == payload and current_time - timestamp < CACHE_EXPIRY_TIME:
             return True
     return False
-
-
 
 def on_message(client, userdata, msg) -> None:
     """Handle incoming MQTT messages."""
