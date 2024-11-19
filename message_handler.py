@@ -23,6 +23,8 @@ def is_recent_message(payload) -> bool:
             return True
     return False
 
+
+
 def on_message(client, userdata, msg) -> None:
     """Handle incoming MQTT messages."""
     se = mqtt_pb2.ServiceEnvelope()  # Main variable for parsing and decoding
@@ -49,7 +51,7 @@ def on_message(client, userdata, msg) -> None:
     
     original_mp.decoded.CopyFrom(decoded_data)
 
-    # Modify hop limit and hop start. Keep hop_limit/hop_start ratio the same.
+    # Modify hop limit and hop start and preserve hops_away.
     if original_mp.hop_start > 0:
         modified_mp.hop_limit = min(original_mp.hop_limit + load_config.HOP_MODIFIER, 7 - (original_mp.hop_start - original_mp.hop_limit))
         modified_mp.hop_start = min(original_mp.hop_start + load_config.HOP_MODIFIER, 7)
@@ -86,7 +88,7 @@ def on_message(client, userdata, msg) -> None:
             new_channel = generate_hash(forward_to_preset, load_config.EXPANDED_KEY)
             modified_mp.channel = new_channel
             original_channel = msg.topic
-            original_channel = original_channel.split("/")[3]
+            original_channel = original_channel.split("/")[-2]
             original_channel = generate_hash(original_channel, load_config.EXPANDED_KEY)
 
             if load_config.EXPANDED_KEY == "":
