@@ -1,4 +1,3 @@
-
 from meshtastic.protobuf import mqtt_pb2
 from meshtastic import protocols
 import logging
@@ -9,7 +8,6 @@ import load_config
 from encryption import decrypt_packet, encrypt_packet
 from utils import protobuf_to_clean_string, get_portnum_name, generate_hash
 from logger import log_forwarded_message, log_skipped_message
-
 
 # Manage recent messages to avoid loops
 RECENT_MESSAGES = deque(maxlen=100)  # Store recent messages to prevent loops
@@ -25,18 +23,15 @@ def is_recent_message(payload) -> bool:
 
 def on_message(client, userdata, msg) -> None:
     """Handle incoming MQTT messages."""
-    se = mqtt_pb2.ServiceEnvelope()
-    se_modified = mqtt_pb2.ServiceEnvelope()
-    se_decoded = mqtt_pb2.ServiceEnvelope()
+    se = mqtt_pb2.ServiceEnvelope()  # Main variable for parsing and decoding
+    modified_se = mqtt_pb2.ServiceEnvelope()  # For modifications and republishing
 
     try:
         # Parse message payload into ServiceEnvelope objects
         se.ParseFromString(msg.payload)
-        se_modified.ParseFromString(msg.payload)
-        se_decoded.ParseFromString(msg.payload)
+        modified_se.ParseFromString(msg.payload)
         original_mp = se.packet
-        modified_mp = se_modified.packet
-        decoded_mp = se_decoded.packet
+        modified_mp = modified_se.packet
     except Exception as e:
         print(f"*** ServiceEnvelope: {str(e)}")
         return
@@ -50,24 +45,24 @@ def on_message(client, userdata, msg) -> None:
     else:
         decoded_data = original_mp.decoded
     
-    decoded_mp.decoded.CopyFrom(decoded_data)
+    original_mp.decoded.CopyFrom(decoded_data)
 
-    # Modify hop limit and hop start. Keep hop_limit/hop_start ratio the same.
+    # Modify hop limit and hop start and preserve hops_away.
     if original_mp.hop_start > 0:
         modified_mp.hop_limit = min(original_mp.hop_limit + load_config.HOP_MODIFIER, 7 - (original_mp.hop_start - original_mp.hop_limit))
         modified_mp.hop_start = min(original_mp.hop_start + load_config.HOP_MODIFIER, 7)
     else:
         modified_mp.hop_limit = min(original_mp.hop_limit + load_config.HOP_MODIFIER, 7)
 
-    if decoded_mp.decoded.portnum in load_config.FORWARDED_PORTNUMS:
+    if original_mp.decoded.portnum in load_config.FORWARDED_PORTNUMS:
         # Extract portnum name and payload for logging
-        portnum_name = get_portnum_name(decoded_mp.decoded.portnum)
-        payload = decoded_mp.decoded.payload
-        portNumInt = decoded_mp.decoded.portnum
+        portnum_name = get_portnum_name(original_mp.decoded.portnum)
+        payload = original_mp.decoded.payload
+        portNumInt = original_mp.decoded.portnum
         handler = protocols.get(portNumInt)
         if handler.protobufFactory is not None:
             pb = handler.protobufFactory()
-            pb.ParseFromString(decoded_mp.decoded.payload)
+            pb.ParseFromString(original_mp.decoded.payload)
             payload = protobuf_to_clean_string(pb)
 
         # Get a list of all topics except the current one
@@ -89,13 +84,13 @@ def on_message(client, userdata, msg) -> None:
             new_channel = generate_hash(forward_to_preset, load_config.EXPANDED_KEY)
             modified_mp.channel = new_channel
             original_channel = msg.topic
-            original_channel = original_channel.split("/")[3]
+            original_channel = original_channel.split("/")[-2]
             original_channel = generate_hash(original_channel, load_config.EXPANDED_KEY)
 
             if load_config.EXPANDED_KEY == "":
-                modified_mp.decoded.CopyFrom(decoded_mp.decoded)
+                modified_mp.decoded.CopyFrom(original_mp.decoded)
             else:
-                modified_mp.encrypted = encrypt_packet(forward_to_preset, load_config.EXPANDED_KEY, modified_mp, decoded_mp.decoded)
+                modified_mp.encrypted = encrypt_packet(forward_to_preset, load_config.EXPANDED_KEY, modified_mp, original_mp.decoded)
 
 
             # Package the modified packet for publishing
@@ -113,6 +108,6 @@ def on_message(client, userdata, msg) -> None:
             else:
                 logging.error(f"Failed to forward message to {target_topic} (Status: {result.rc})")
     else:
-        log_skipped_message(msg.topic,get_portnum_name(decoded_mp.decoded.portnum), "Skipped" )
+        log_skipped_message(msg.topic,get_portnum_name(original_mp.decoded.portnum), "Skipped" )
 
     time.sleep(0.1)
