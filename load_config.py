@@ -25,4 +25,4 @@ FORWARDED_PORTNUMS = config['forwarded_portnums']
 HOP_MODIFIER = config['hop_modifier']
 
 # Get the full default key
-EXPANDED_KEY = "1PG7OiApB1nwvP+rz05pAQ==" if KEY == "AQ==" else KEY
+KEY = "1PG7OiApB1nwvP+rz05pAQ==" if KEY == "AQ==" else KEY

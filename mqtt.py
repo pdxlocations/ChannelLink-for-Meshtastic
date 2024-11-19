@@ -12,7 +12,7 @@ def on_connect(client, userdata, flags, reason_code, properties=None):
         logging.error(f"Failed to connect with reason code {reason_code}")
 
 def create_mqtt_client():
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     client.username_pw_set(load_config.USER, load_config.PASSWORD)
     client.on_connect = on_connect
     return client

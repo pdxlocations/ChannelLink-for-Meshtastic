@@ -6,7 +6,6 @@ import logging
 
 from utils import generate_hash
 
-
 def decrypt_packet(mp, key):
     """Decrypt the encrypted message payload and return the decoded data."""
     try:

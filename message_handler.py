@@ -38,7 +38,7 @@ def on_message(client, userdata, msg) -> None:
     
     # Decrypt the payload if necessary
     if original_mp.HasField("encrypted") and not original_mp.HasField("decoded"):
-        decoded_data = decrypt_packet(original_mp, load_config.EXPANDED_KEY)
+        decoded_data = decrypt_packet(original_mp, load_config.KEY)
         if decoded_data is None:  # Check if decryption failed
             logging.error("Decryption failed; skipping message")
             return  # Skip processing this message if decryption failed
@@ -81,16 +81,16 @@ def on_message(client, userdata, msg) -> None:
             forward_to_preset = target_topic.split("/")[-1]
             target_topic =f"{target_topic}/{gateway_node_id}"
     
-            new_channel = generate_hash(forward_to_preset, load_config.EXPANDED_KEY)
+            new_channel = generate_hash(forward_to_preset, load_config.KEY)
             modified_mp.channel = new_channel
             original_channel = msg.topic
             original_channel = original_channel.split("/")[-2]
-            original_channel = generate_hash(original_channel, load_config.EXPANDED_KEY)
+            original_channel = generate_hash(original_channel, load_config.KEY)
 
-            if load_config.EXPANDED_KEY == "":
+            if load_config.KEY == "":
                 modified_mp.decoded.CopyFrom(original_mp.decoded)
             else:
-                modified_mp.encrypted = encrypt_packet(forward_to_preset, load_config.EXPANDED_KEY, modified_mp, original_mp.decoded)
+                modified_mp.encrypted = encrypt_packet(forward_to_preset, load_config.KEY, modified_mp, original_mp.decoded)
 
 
             # Package the modified packet for publishing
