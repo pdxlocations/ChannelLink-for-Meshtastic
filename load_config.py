@@ -23,6 +23,7 @@ TOPICS = config['topics']
 KEY = config['key']
 FORWARDED_PORTNUMS = config['forwarded_portnums']
 HOP_MODIFIER = config['hop_modifier']
+NICKS = config['nicks']
 
 # Get the full default key
 KEY = "1PG7OiApB1nwvP+rz05pAQ==" if KEY == "AQ==" else KEY

@@ -1,4 +1,4 @@
-from meshtastic.protobuf import mqtt_pb2
+from meshtastic.protobuf import mqtt_pb2, mesh_pb2
 from meshtastic import protocols
 import logging
 import time
@@ -13,11 +13,11 @@ from logger import log_forwarded_message, log_skipped_message
 RECENT_MESSAGES = deque(maxlen=100)  # Store recent messages to prevent loops
 CACHE_EXPIRY_TIME = 5  # Messages expire from cache after 5 seconds
 
-def is_recent_message(payload) -> bool:
-    """Check if a message was recently processed to avoid loops."""
+def is_recent_message(message_id) -> bool:
+    """Check if a message ID was recently processed to avoid loops."""
     current_time = time.time()
-    for msg_payload, timestamp in RECENT_MESSAGES:
-        if msg_payload == payload and current_time - timestamp < CACHE_EXPIRY_TIME:
+    for msg_id, timestamp in RECENT_MESSAGES:
+        if msg_id == message_id and current_time - timestamp < CACHE_EXPIRY_TIME:
             return True
     return False
 
@@ -36,6 +36,15 @@ def on_message(client, userdata, msg) -> None:
         print(f"*** ServiceEnvelope: {str(e)}")
         return
     
+    # Check if the message ID is recent
+    message_id = se.packet.id
+    if is_recent_message(message_id):
+        return
+
+    # Cache the message ID to prevent loops
+    RECENT_MESSAGES.append((message_id, time.time()))
+
+
     # Decrypt the payload if necessary
     if original_mp.HasField("encrypted") and not original_mp.HasField("decoded"):
         decoded_data = decrypt_packet(original_mp, load_config.KEY)
@@ -68,19 +77,28 @@ def on_message(client, userdata, msg) -> None:
         # Get a list of all topics except the current one
         target_topics = [topic for topic in load_config.TOPICS if topic != msg.topic.split('/!')[0]]
 
-        # Check if the message was forwarded recently
-        if is_recent_message(payload):
-            return
-        
-        # Cache the message to prevent loops
-        RECENT_MESSAGES.append((payload, time.time()))
+        # Find the nick corresponding to the current topic
+        current_topic_prefix = msg.topic.split('/!')[0]
+        try:
+            nick_index = load_config.TOPICS.index(current_topic_prefix)
+            current_nick = load_config.NICKS[nick_index]
+        except ValueError:
+            current_nick = ""  # Default if topic not found
 
         # Forward the message to all other topics
         for target_topic in target_topics:
+
             gateway_node_id = msg.topic.split("/")[-1]
             forward_to_preset = target_topic.split("/")[-1]
             target_topic =f"{target_topic}/{gateway_node_id}"
-    
+
+            if get_portnum_name(original_mp.decoded.portnum) == "NODEINFO_APP":
+                info = mesh_pb2.User()
+                info.ParseFromString(original_mp.decoded.payload)
+                info.long_name = info.long_name + current_nick
+                modified_nodeinfo = info.SerializeToString()
+                original_mp.decoded.payload = modified_nodeinfo
+
             new_channel = generate_hash(forward_to_preset, load_config.KEY)
             modified_mp.channel = new_channel
             original_channel = msg.topic

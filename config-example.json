@@ -10,6 +10,11 @@
     "msh/US/BRIDGE/2/e/MediumFast",
     "msh/US/BRIDGE/2/e/ShortFast"
   ],
+  "nicks": [
+    " (via LF)",
+    " (via MF)",
+    " (via SF)"
+  ],
   "key": "AQ==",
   "hop_modifier": 1,
   "forwarded_portnums": [1, 3, 4, 5, 6, 8, 70],
