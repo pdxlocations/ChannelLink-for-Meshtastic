@@ -1,4 +1,4 @@
-A Python script using MQTT to bridge Meshtastic networks using different frequencies and/or modem settings.
+A Python script using MQTT to bridge Meshtastic networks using different frequencies and modem settings.
 
 Example Topology:<br>
 <img width="831" alt="example topology" src="https://github.com/user-attachments/assets/0c269d65-3b17-4aa8-b159-08e404bca69f">
