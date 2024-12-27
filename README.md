@@ -121,10 +121,13 @@ sudo nmcli device wifi hotspot ssid <example-network-name> password <example-pas
 ```
 
 ### If you need to disable the AP and connect to your wifi
-Run:
+To shut down the AP:
 ```
-sudo nmcli device disconnect wlan0
-sudo nmcli device up wlan0
+sudo nmcli connection down Hotspot
+```
+To start it back up:
+```
+sudo nmcli connection up Hotspot
 ```
 
 ### Enable the AP to start on boot
