@@ -92,12 +92,14 @@ def on_message(client, userdata, msg) -> None:
             forward_to_preset = target_topic.split("/")[-1]
             target_topic =f"{target_topic}/{gateway_node_id}"
 
-            if get_portnum_name(original_mp.decoded.portnum) == "NODEINFO_APP":
-                info = mesh_pb2.User()
-                info.ParseFromString(original_mp.decoded.payload)
-                info.long_name = info.long_name + current_nick
-                modified_nodeinfo = info.SerializeToString()
-                original_mp.decoded.payload = modified_nodeinfo
+        # Modify nodeinfo LongName to include "nickname"
+        if get_portnum_name(original_mp.decoded.portnum) == "NODEINFO_APP":
+            info = mesh_pb2.User()
+            info.ParseFromString(original_mp.decoded.payload)
+            if current_nick not in info.long_name:
+                info.long_name += current_nick
+            modified_nodeinfo = info.SerializeToString()
+            original_mp.decoded.payload = modified_nodeinfo
 
             new_channel = generate_hash(forward_to_preset, load_config.KEY)
             modified_mp.channel = new_channel
