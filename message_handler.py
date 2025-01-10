@@ -101,32 +101,32 @@ def on_message(client, userdata, msg) -> None:
                 modified_nodeinfo = info.SerializeToString()
                 original_mp.decoded.payload = modified_nodeinfo
 
-                new_channel = generate_hash(forward_to_preset, load_config.KEY)
-                modified_mp.channel = new_channel
-                original_channel = msg.topic
-                original_channel = original_channel.split("/")[-2]
-                original_channel = generate_hash(original_channel, load_config.KEY)
+            new_channel = generate_hash(forward_to_preset, load_config.KEY)
+            modified_mp.channel = new_channel
+            original_channel = msg.topic
+            original_channel = original_channel.split("/")[-2]
+            original_channel = generate_hash(original_channel, load_config.KEY)
 
-                if load_config.KEY == "":
-                    modified_mp.decoded.CopyFrom(original_mp.decoded)
-                else:
-                    modified_mp.encrypted = encrypt_packet(forward_to_preset, load_config.KEY, modified_mp, original_mp.decoded)
+            if load_config.KEY == "":
+                modified_mp.decoded.CopyFrom(original_mp.decoded)
+            else:
+                modified_mp.encrypted = encrypt_packet(forward_to_preset, load_config.KEY, modified_mp, original_mp.decoded)
 
 
-                # Package the modified packet for publishing
-                service_envelope = mqtt_pb2.ServiceEnvelope()
-                service_envelope.packet.CopyFrom(modified_mp)
-                service_envelope.channel_id = forward_to_preset
-                service_envelope.gateway_id = gateway_node_id
+            # Package the modified packet for publishing
+            service_envelope = mqtt_pb2.ServiceEnvelope()
+            service_envelope.packet.CopyFrom(modified_mp)
+            service_envelope.channel_id = forward_to_preset
+            service_envelope.gateway_id = gateway_node_id
 
-                modified_payload = service_envelope.SerializeToString()
+            modified_payload = service_envelope.SerializeToString()
 
-                result = client.publish(target_topic, modified_payload)
+            result = client.publish(target_topic, modified_payload)
 
-                if result.rc == 0:
-                    log_forwarded_message(msg.topic, target_topic, portnum_name, original_channel, new_channel, original_mp.hop_limit, modified_mp.hop_limit, original_mp.hop_start, modified_mp.hop_start, payload, "Forwarded")
-                else:
-                    logging.error(f"Failed to forward message to {target_topic} (Status: {result.rc})")
+            if result.rc == 0:
+                log_forwarded_message(msg.topic, target_topic, portnum_name, original_channel, new_channel, original_mp.hop_limit, modified_mp.hop_limit, original_mp.hop_start, modified_mp.hop_start, payload, "Forwarded")
+            else:
+                logging.error(f"Failed to forward message to {target_topic} (Status: {result.rc})")
     else:
         log_skipped_message(msg.topic,get_portnum_name(original_mp.decoded.portnum), "Skipped" )
 
