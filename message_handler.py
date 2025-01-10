@@ -127,6 +127,8 @@ def on_message(client, userdata, msg) -> None:
                 log_forwarded_message(msg.topic, target_topic, portnum_name, original_channel, new_channel, original_mp.hop_limit, modified_mp.hop_limit, original_mp.hop_start, modified_mp.hop_start, payload, "Forwarded")
             else:
                 logging.error(f"Failed to forward message to {target_topic} (Status: {result.rc})")
+            
+            time.sleep(0.5) # short delay so nodes don't publish all at once
     else:
         log_skipped_message(msg.topic,get_portnum_name(original_mp.decoded.portnum), "Skipped" )
 
